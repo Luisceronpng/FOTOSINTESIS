@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BioSíntesis - Simulador 4D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700;900&display=swap');
+
+        /* CYBER-BIO AESTHETIC */
+        :root {
+            --bg-deep: #01040a;
+            --neon-cyan: #00f2fe;
+            --neon-green: #00ff6a;
+            --neon-gold: #ffcf00;
+            --neon-red: #ff2a55;
+            --glass-bg: rgba(10, 15, 30, 0.6);
+            --glass-border: rgba(0, 242, 254, 0.3);
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg-deep);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            touch-action: manipulation;
+            margin: 0;
+        }
+
+        #bg-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        /* HUD & Panels (Sci-Fi Glass) */
+        .cyber-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9), inset 0 0 30px rgba(0, 242, 254, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .cyber-panel::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 242, 254, 0.2), transparent);
+            animation: scanline 3s infinite linear;
+        }
+
+        @keyframes scanline { 100% { left: 200%; } }
+
+        /* 3D LIQUID BLOBS (Respuestas) */
+        .molecule-blob {
+            position: absolute;
+            top: 0; left: 0;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            text-align: center;
+            padding: 10px;
+            
+            /* Efecto Cristal 3D Realista */
+            background: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.9) 0%, rgba(0, 242, 254, 0.6) 40%, rgba(0, 40, 100, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            box-shadow: 
+                inset 15px 15px 25px rgba(255,255,255,0.6), 
+                inset -15px -15px 25px rgba(0,0,0,0.8),
+                0 20px 40px rgba(0, 242, 254, 0.6);
+            
+            color: #ffffff;
+            font-weight: 900;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+            font-size: clamp(0.7rem, 2vw, 1.2rem);
+            width: clamp(90px, 20vw, 140px);
+            height: clamp(90px, 20vw, 140px);
+            
+            border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+            animation: morphBlob 3s ease-in-out infinite alternate;
+            
+            user-select: none;
+            line-height: 1.1;
+            z-index: 10;
+            will-change: transform;
+            transition: filter 0.2s, box-shadow 0.2s;
+        }
+
+        .molecule-blob:hover {
+            filter: brightness(1.2);
+            box-shadow: 
+                inset 15px 15px 25px rgba(255,255,255,0.8), 
+                inset -15px -15px 25px rgba(0,0,0,0.8),
+                0 20px 50px rgba(0, 242, 254, 1);
+        }
+
+        /* Power-Ups (Estasis y ATP) */
+        .blob-powerup-freeze {
+            box-shadow: inset 15px 15px 25px rgba(255,255,255,0.8), inset -15px -15px 25px rgba(0,0,0,0.8), 0 20px 50px rgba(0, 242, 254, 1);
+        }
+
+        /* Power-Ups (Estasis y ATP) */
+        .blob-powerup-time {
+            background: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.8), var(--neon-gold) 40%, #b34700 100%);
+            box-shadow: inset 15px 15px 25px rgba(255,255,255,0.6), inset -15px -15px 25px rgba(0,0,0,0.8), 0 0 50px var(--neon-gold);
+            color: white; font-size: clamp(1rem, 3vw, 1.5rem); font-weight: 900; border-radius: 50%; animation: pulsePower 1s infinite alternate;
+        }
+        .blob-powerup-remove {
+            background: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.8), var(--neon-red) 40%, #800020 100%);
+            box-shadow: inset 15px 15px 25px rgba(255,255,255,0.6), inset -15px -15px 25px rgba(0,0,0,0.8), 0 0 50px var(--neon-red);
+            color: white; font-size: clamp(1rem, 3vw, 1.5rem); font-weight: 900; border-radius: 50%; animation: pulsePower 1s infinite alternate;
+        }
+
+        @keyframes pulsePower { 
+            0% { transform: scale(1); filter: brightness(1); } 
+            100% { transform: scale(1.15); filter: brightness(1.4); } 
+        }
+        
+        @keyframes morphBlob {
+            0% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+            50% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; }
+            100% { border-radius: 50% 50% 20% 80% / 25% 80% 20% 75%; }
+        }
+
+        /* OVERDRIVE UI */
+        #overdrive-bar-container {
+            width: 100%; height: 10px; background: rgba(0,0,0,0.6); border-radius: 5px; overflow: hidden; margin-top: 5px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8), 0 0 5px rgba(255,255,255,0.1);
+        }
+        #overdrive-bar {
+            height: 100%; width: 0%; background: var(--neon-green); box-shadow: 0 0 15px var(--neon-green);
+            transition: width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .overdrive-active {
+            animation: overdriveFlash 0.8s infinite alternate;
+        }
+        @keyframes overdriveFlash {
+            0% { box-shadow: inset 0 0 50px rgba(0, 255, 106, 0.1); }
+            100% { box-shadow: inset 0 0 200px rgba(0, 255, 106, 0.5); }
+        }
+
+        /* TEXTOS & GLOW */
+        .text-glow { text-shadow: 0 0 15px currentColor; }
+        .glitch-error { animation: glitch 0.4s cubic-bezier(.25, .46, .45, .94) both; color: var(--neon-red); }
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-10px, 10px) }
+            40% { transform: translate(-10px, -10px) }
+            60% { transform: translate(10px, 10px) }
+            80% { transform: translate(10px, -10px) }
+            100% { transform: translate(0) }
+        }
+
+        /* Animación Desaparición Acierto */
+        .pop-out { animation: popAnim 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: none; }
+        @keyframes popAnim {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.5); filter: brightness(2.5); }
+            100% { transform: scale(0); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="flex flex-col transition-all duration-500" id="main-body">
+
+    <!-- CANVAS PARTICULAS FONDO -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- PANTALLA INICIAL (CYBER TERMINAL) -->
+    <div id="screen-start" class="absolute inset-0 z-50 flex items-center justify-center p-4">
+        <div class="cyber-panel p-10 max-w-md w-full text-center">
+            <div class="inline-block px-5 py-1 rounded-full border-2 border-[var(--neon-cyan)] text-[var(--neon-cyan)] text-xs font-black tracking-widest mb-6 uppercase shadow-[0_0_10px_rgba(0,242,254,0.4)]">Cloroplasto v4.0</div>
+            
+            <h1 class="text-6xl font-black text-white mb-2 uppercase tracking-tighter text-glow" style="color: var(--neon-cyan);">BioSíntesis</h1>
+            
+            <p class="text-md text-gray-300 mb-8 font-medium leading-relaxed">Entorno celular activo. Las respuestas rebotan orgánicamente. Atrapa los <span class="text-[var(--neon-gold)] font-bold">Power-Ups</span> y desata el <span class="text-[var(--neon-green)] font-bold text-glow">OVERDRIVE</span> para triplicar tus puntos.</p>
+            
+            <input type="text" id="player-name" maxlength="15" placeholder="ID DEL INVESTIGADOR" class="w-full bg-black/70 border-2 border-[var(--neon-cyan)] text-white p-4 rounded-xl mb-6 text-center font-bold text-xl uppercase tracking-widest focus:outline-none focus:shadow-[0_0_25px_rgba(0,242,254,0.6)] transition-shadow" autocomplete="off">
+            
+            <button onclick="startGame()" class="w-full bg-[var(--neon-cyan)] hover:bg-white text-black font-black py-4 rounded-xl transition-all duration-300 text-2xl uppercase tracking-widest shadow-[0_0_25px_rgba(0,242,254,0.5)] hover:shadow-[0_0_50px_rgba(255,255,255,0.9)] hover:scale-105">
+                INICIAR SIMULACIÓN
+            </button>
+        </div>
+    </div>
+
+    <!-- PANTALLA DE JUEGO (HUD y Físicas) -->
+    <div id="screen-game" class="hidden absolute inset-0 z-10 flex flex-col">
+        <!-- HUD -->
+        <div class="cyber-panel mx-2 mt-2 p-3 z-20">
+            <div class="flex justify-between items-center mb-1">
+                <div class="w-1/3">
+                    <div class="text-[0.6rem] md:text-xs uppercase text-[var(--neon-cyan)] font-bold tracking-widest">Puntaje Genético</div>
+                    <div id="score" class="text-2xl md:text-4xl font-black text-white text-glow leading-none mt-1">0</div>
+                </div>
+                <div class="w-1/3 text-center">
+                    <div id="overdrive-text" class="text-[0.6rem] md:text-xs uppercase text-gray-300 font-bold tracking-widest">RuBisCO Charge</div>
+                    <div id="overdrive-bar-container"><div id="overdrive-bar"></div></div>
+                    <div id="powerup-tracker" class="text-[0.55rem] md:text-[0.7rem] uppercase text-[var(--neon-gold)] font-bold mt-1 tracking-widest">POTENCIADOR EN: 2 ACIERTOS</div>
+                </div>
+                <div class="w-1/3 text-right">
+                    <div class="text-[0.6rem] md:text-xs uppercase text-[var(--neon-gold)] font-bold tracking-widest">Tiempo</div>
+                    <div id="timer" class="text-2xl md:text-4xl font-black text-white text-glow leading-none mt-1">240</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Caja de Pregunta -->
+        <div id="question-box" class="cyber-panel mx-2 mt-2 p-4 text-center z-20 min-h-[80px] md:min-h-[120px] flex items-center justify-center border-l-4 md:border-l-8 border-l-[var(--neon-cyan)]">
+            <h2 id="question-text" class="text-lg md:text-3xl font-black text-white uppercase tracking-wide leading-tight text-glow">
+                Cargando datos del estroma...
+            </h2>
+        </div>
+
+        <!-- Anunciador Épico (Overdrive/Powerups) -->
+        <div id="event-announcer" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 text-5xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[var(--neon-green)] to-[var(--neon-cyan)] opacity-0 pointer-events-none drop-shadow-[0_0_30px_rgba(0,255,106,1)] uppercase tracking-tighter transition-opacity duration-300 text-center w-full">
+            OVERDRIVE
+        </div>
+
+        <!-- Área de Juego (Físicas) -->
+        <div id="game-area" class="flex-1 relative overflow-hidden mt-2"></div>
+    </div>
+
+    <!-- PANTALLA DE RESULTADOS (Leaderboard) -->
+    <div id="screen-result" class="hidden absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="cyber-panel p-8 max-w-lg w-full text-center flex flex-col max-h-[90vh]">
+            <h2 class="text-2xl font-black text-[var(--neon-cyan)] mb-2 tracking-widest uppercase">Análisis Terminado</h2>
+            <div class="text-7xl font-black text-white mb-6 text-glow" id="final-score">0</div>
+            
+            <div class="bg-black/60 p-3 rounded-lg border border-white/20 mb-4">
+                <h3 class="text-md font-bold text-[var(--neon-gold)] uppercase tracking-widest text-glow">🏆 Red Global de Investigadores</h3>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto mb-6 text-left space-y-3 pr-2" id="leaderboard-list">
+                <div class="text-center text-[var(--neon-cyan)] py-4 animate-pulse font-bold text-xl">Sincronizando con base de datos central...</div>
+            </div>
+
+            <button id="btn-restart" onclick="location.reload()" class="hidden w-full bg-white hover:bg-gray-300 text-black font-black py-4 rounded-xl transition-all duration-300 text-2xl uppercase tracking-widest hover:scale-105">
+                NUEVA SIMULACIÓN
+            </button>
+        </div>
+    </div>
+
+    <!-- SINTETIZADOR DE AUDIO (Genera Sonido con Código, Cero Archivos Externos) -->
+    <script>
+        const actx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration, vol=0.1, slideFreq=null) {
+            if (actx.state === 'suspended') actx.resume();
+            const osc = actx.createOscillator();
+            const gain = actx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, actx.currentTime);
+            if(slideFreq) osc.frequency.exponentialRampToValueAtTime(slideFreq, actx.currentTime + duration);
+            
+            osc.connect(gain); gain.connect(actx.destination);
+            gain.gain.setValueAtTime(vol, actx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + duration);
+            osc.start(); osc.stop(actx.currentTime + duration);
+        }
+        
+        const sfx = {
+            popOk: () => { playTone(800, 'sine', 0.1, 0.1, 1500); },
+            popBad: () => { playTone(150, 'sawtooth', 0.4, 0.2, 50); },
+            overdrive: () => { playTone(300, 'square', 0.5, 0.2, 800); setTimeout(()=>playTone(400, 'square', 0.8, 0.2, 1200), 200); },
+            powerup: () => { playTone(1200, 'sine', 0.3, 0.15, 2000); setTimeout(()=>playTone(1500, 'sine', 0.3, 0.15, 2500), 100); },
+            end: () => { playTone(400, 'triangle', 0.2); setTimeout(()=>playTone(300, 'triangle', 0.4), 200); }
+        };
+    </script>
+
+    <!-- MOTOR LÓGICO Y FÍSICAS -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // CONFIGURACIÓN FIREBASE 
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'biosintesis-4d';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "mock", projectId: "mock" };
+        let app, auth, db, user;
+        let isFirebaseActive = false;
+        
+        try { 
+            app = initializeApp(firebaseConfig); 
+            auth = getAuth(app); 
+            db = getFirestore(app); 
+            isFirebaseActive = true; 
+        } catch (e) { console.warn("Modo Local activo. No se guardarán puntajes."); }
+
+        // --- MODO PROYECTOR Y SISTEMA ANTI-SABOTAJE ---
+        window.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isHost = urlParams.get('host');
+            const hasPlayed = localStorage.getItem('biosintesis_played');
+
+            // Autenticación silenciosa necesaria para leer la BD
+            if(isFirebaseActive) {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined') await signInWithCustomToken(auth, __initial_auth_token);
+                    else await signInAnonymously(auth);
+                    user = auth.currentUser;
+                } catch(e) { console.error(e); }
+            }
+
+            if (isHost === 'true') {
+                // MODO HOST: Entra directo a la tabla de posiciones
+                document.getElementById('screen-start').classList.add('hidden');
+                document.getElementById('screen-result').classList.remove('hidden');
+                document.getElementById('final-score').innerHTML = "MODO<br>PROYECTOR";
+                document.getElementById('final-score').classList.replace('text-7xl', 'text-5xl');
+                document.getElementById('final-score').style.color = "var(--neon-cyan)";
+                
+                // PANEL DE ADMINISTRADOR SECRETO
+                const adminDiv = document.createElement('div');
+                adminDiv.className = "flex gap-4 mt-6";
+                adminDiv.innerHTML = `
+                    <button onclick="clearLeaderboard()" class="w-1/2 bg-[var(--neon-red)]/80 hover:bg-[var(--neon-red)] text-white font-bold py-3 rounded-xl text-sm uppercase shadow-[0_0_15px_rgba(255,42,85,0.5)] transition-all">🗑️ Limpiar Tabla</button>
+                    <button onclick="unlockDevice()" class="w-1/2 bg-[var(--neon-cyan)]/80 hover:bg-[var(--neon-cyan)] text-black font-bold py-3 rounded-xl text-sm uppercase shadow-[0_0_15px_rgba(0,242,254,0.5)] transition-all">🔓 Desbloquear Equipo</button>
+                `;
+                document.getElementById('screen-result').querySelector('.cyber-panel').appendChild(adminDiv);
+
+                setupLeaderboard();
+            } else if (hasPlayed === 'true') {
+                // MODO ESPECTADOR: El usuario ya jugó, se bloquea para evitar sabotaje y lo enviamos a ver el leaderboard
+                document.getElementById('screen-start').classList.add('hidden');
+                document.getElementById('screen-result').classList.remove('hidden');
+                document.getElementById('final-score').innerHTML = "ANÁLISIS<br>COMPLETADO";
+                document.getElementById('final-score').classList.replace('text-7xl', 'text-4xl');
+                document.getElementById('btn-restart').classList.add('hidden'); // Ocultar el botón de nueva simulación
+                setupLeaderboard();
+            }
+        });
+
+        // --- FUNCIONES DE ADMINISTRADOR ---
+        window.clearLeaderboard = async function() {
+            if(!confirm("⚠️ ¿Estás seguro de borrar todos los puntajes? La tabla quedará en cero para la exposición.")) return;
+            if(!isFirebaseActive || !user) return;
+            
+            try {
+                const ref = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard_4d');
+                const snap = await getDocs(ref);
+                snap.forEach(d => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard_4d', d.id)));
+                alert("Base de datos limpiada exitosamente.");
+            } catch(e) { console.error("Error al borrar:", e); alert("Error al borrar datos."); }
+        };
+
+        window.unlockDevice = function() {
+            localStorage.removeItem('biosintesis_played');
+            alert("Tu dispositivo ha sido desbloqueado. Si recargas la página (F5), podrás jugar de nuevo.");
+        };
+
+        // --- SISTEMA DE PARTÍCULAS (FLUIDO CELULAR) ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 4 + 1;
+                this.speedY = (Math.random() * 2 + 0.5) * -1; // Suben como burbujas de oxígeno
+                this.alpha = Math.random() * 0.6 + 0.1;
+                this.hue = Math.random() > 0.5 ? 180 : 150; // Cyan o Verde Clorofila
+            }
+            update(speedMult) {
+                this.y += this.speedY * speedMult;
+                // Wobble horizontal ligero
+                this.x += Math.sin(this.y * 0.05) * 0.5;
+                if(this.y < -10) {
+                    this.y = canvas.height + 10;
+                    this.x = Math.random() * canvas.width;
+                }
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.hue}, 100%, 50%, ${this.alpha})`;
+                ctx.fill();
+            }
+        }
+        for(let i=0; i<70; i++) particles.push(new Particle()); // Más partículas
+
+        // --- PREGUNTAS (Extraídas al pie de la letra de tu PDF) ---
+        const questionsDB = [
+            { q: "¿En qué estructura del cloroplasto se lleva a cabo la fase luminosa?", a: "Tilacoides", wrongs: ["Estroma", "Citoplasma", "Núcleo"] },
+            { q: "¿Qué enzima une el CO2 a la RuBP en la fase oscura?", a: "RuBisCO", wrongs: ["ATP Sintasa", "Amilasa", "Fotoliasa"] },
+            { q: "Pigmento verde que refleja la luz verde y absorbe las demás.", a: "Clorofila", wrongs: ["Caroteno", "Xantofila", "Melanina"] },
+            { q: "¿En qué parte ocurre el Ciclo de Calvin (Fase Oscura)?", a: "Estroma", wrongs: ["Tilacoides", "Grana", "Pared celular"] },
+            { q: "Molécula de energía lista para usarse, producida en la fase luminosa.", a: "ATP", wrongs: ["Glucosa", "Agua", "RuBP"] },
+            { q: "¿De dónde proviene el oxígeno (O2) que liberan las plantas?", a: "Fotólisis del Agua", wrongs: ["Del CO2", "Del suelo", "De la glucosa"] },
+            { q: "¿Cuántas moléculas de CO2 se necesitan para hacer una Glucosa?", a: "Seis", wrongs: ["Tres", "Una", "Doce"] },
+            { q: "Pigmentos accesorios que dan color naranja o rojo (400-500nm).", a: "Carotenos", wrongs: ["Clorofila a", "Xantofilas", "Cianobacterias"] },
+            { q: "Nombre de las 3 etapas del ciclo de Calvin.", a: "Carboxilación, Reducción, Regeneración", wrongs: ["Glucólisis, Krebs, Transporte", "Fotólisis, ATP, NADPH", "Absorción, Reflexión, Emisión"] },
+            { q: "Poder reductor producido en la fase luminosa.", a: "NADPH", wrongs: ["NADH", "FADH2", "ADP"] },
+            { q: "Organismos capaces de sintetizar su propio alimento.", a: "Autótrofos", wrongs: ["Heterótrofos", "Descomponedores", "Parásitos"] },
+            { q: "¿Qué porcentaje del oxígeno respirable produce el fitoplancton?", a: "Más del 50%", wrongs: ["10%", "100%", "5%"] },
+            { q: "Además de plantas y algas, ¿qué organismo microscópico es fotoautótrofo?", a: "Cianobacterias", wrongs: ["Hongos", "Virus", "Mamíferos"] },
+            { q: "Pigmentos que protegen del exceso de luz disipándola como calor.", a: "Xantofilas", wrongs: ["Clorofila b", "Carotenos", "Melanina"] },
+            { q: "Metal presente en el centro del anillo porfirínico de las clorofilas.", a: "Magnesio (Mg)", wrongs: ["Hierro (Fe)", "Cobre (Cu)", "Calcio (Ca)"] },
+            { q: "Principal factor externo que regula la actividad del Ciclo de Calvin.", a: "La luz", wrongs: ["La temperatura", "El viento", "Presión atmosférica"] },
+            { q: "¿Qué espectro de luz absorben principalmente los carotenos?", a: "Azul-verde", wrongs: ["Rojo-naranja", "Infrarrojo", "Ultravioleta"] },
+            { q: "Principal producto orgánico sintetizado al finalizar la fotosíntesis.", a: "Glucosa", wrongs: ["Proteína", "Lípido", "Vitamina A"] }
+        ];
+
+        // --- ESTADO DEL JUEGO ---
+        let state = {
+            name: "", score: 0, timeLeft: 240, timerInterval: null,
+            availableQs: [...questionsDB], currentQ: null,
+            overdriveProgress: 0, isOverdrive: false,
+            physicsSpeedMult: 1, // Permite ralentizar o acelerar el entorno
+        };
+
+        let activeBlobs = [];
+        let physicsFrame;
+        const gameArea = document.getElementById('game-area');
+        const bodyEl = document.getElementById('main-body');
+
+        window.startGame = function() { // Quité el async porque ya autenticamos al cargar la página
+            const nameIn = document.getElementById('player-name').value.trim();
+            if(!nameIn) { alert("SISTEMA ALERTA: Requiere ID de investigador válido."); return; }
+            if(nameIn.length > 15) { alert("SISTEMA ALERTA: El ID es demasiado largo (Max 15 caracteres)."); return; }
+            
+            if (actx.state === 'suspended') actx.resume();
+            sfx.popOk();
+
+            state.name = nameIn;
+            document.getElementById('screen-start').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('hidden');
+
+            // Temporizador Principal
+            state.timerInterval = setInterval(() => {
+                state.timeLeft--;
+                document.getElementById('timer').innerText = state.timeLeft;
+                
+                if(state.timeLeft <= 0) endGame();
+            }, 1000);
+
+            physicsLoop();
+            nextQuestion();
+        };
+
+        // --- MOTOR DE FÍSICAS FLUIDAS (MOLÉCULAS REBOTANDO) ---
+        function physicsLoop() {
+            if (state.timeLeft <= 0) return;
+            
+            // Dibujar fondo
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let pSpeed = state.isOverdrive ? 4 : state.physicsSpeedMult;
+            particles.forEach(p => { p.update(pSpeed); p.draw(); });
+
+            // Físicas de las burbujas
+            const rect = gameArea.getBoundingClientRect();
+            
+            activeBlobs.forEach(b => {
+                if (b.isPopping) return;
+
+                b.x += b.dx * state.physicsSpeedMult;
+                b.y += b.dy * state.physicsSpeedMult;
+
+                // Rotación dinámica basada en la dirección
+                b.rotation += (b.dx > 0 ? 1 : -1) * state.physicsSpeedMult * 0.5;
+
+                // Colisiones con los bordes (Rebote)
+                if (b.x <= 0) { b.x = 0; b.dx *= -1; }
+                if (b.x >= rect.width - b.w) { b.x = rect.width - b.w; b.dx *= -1; }
+                if (b.y <= 0) { b.y = 0; b.dy *= -1; }
+                if (b.y >= rect.height - b.h) { b.y = rect.height - b.h; b.dy *= -1; }
+
+                b.el.style.transform = `translate(${b.x}px, ${b.y}px) rotate(${b.rotation}deg)`;
+            });
+
+            physicsFrame = requestAnimationFrame(physicsLoop);
+        }
+
+        function nextQuestion() {
+            if(state.timeLeft <= 0) return;
+            
+            // Eliminar solo las moléculas normales, mantener los power-ups
+            activeBlobs = activeBlobs.filter(b => {
+                if (b.type === 'normal') { b.el.remove(); return false; }
+                return true;
+            });
+            
+            // Recargar bolsa de preguntas si se vació
+            if (state.availableQs.length === 0) state.availableQs = [...questionsDB];
+            
+            // Extraer una pregunta y borrarla de la lista temporal
+            state.currentQ = state.availableQs.splice(Math.floor(Math.random() * state.availableQs.length), 1)[0];
+            
+            const qBox = document.getElementById('question-box');
+            qBox.classList.remove('glitch-error'); void qBox.offsetWidth; // reset anim
+            document.getElementById('question-text').innerText = state.currentQ.q;
+
+            let opts = [state.currentQ.a, ...state.currentQ.wrongs].sort(() => Math.random() - 0.5);
+            opts.forEach((opt) => spawnBlob(opt, opt === state.currentQ.a, 'normal'));
+        }
+
+        function spawnPowerUp() {
+            const types = ['time', 'remove'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            let text = '';
+            if (type === 'time') text = '⏱️<br>+10s';
+            else if (type === 'remove') text = '✂️<br>-1 Falsa';
+            
+            spawnBlob(text, false, type);
+        }
+
+        function spawnBlob(text, isCorrect, type) {
+            const blob = document.createElement('div');
+            
+            if(type === 'normal') blob.className = 'molecule-blob';
+            else if(type === 'time') blob.className = 'molecule-blob blob-powerup-time';
+            else if(type === 'remove') blob.className = 'molecule-blob blob-powerup-remove';
+            
+            blob.innerHTML = text;
+            blob.style.opacity = '0';
+            
+            if(type !== 'normal') {
+                blob.style.width = '100px'; blob.style.height = '100px';
+            }
+
+            gameArea.appendChild(blob);
+
+            // Permitir que el DOM renderice para calcular tamaños
+            requestAnimationFrame(() => {
+                const size = blob.getBoundingClientRect();
+                const container = gameArea.getBoundingClientRect();
+                const x = Math.random() * (container.width - size.width);
+                const y = Math.random() * (container.height - size.height);
+                
+                // Velocidad base reducida para mayor jugabilidad
+                let speed = (window.innerWidth < 768) ? 0.8 + Math.random() * 0.5 : 1.2 + Math.random() * 0.8;
+                if(type !== 'normal') speed *= 1.5; // Los power-ups vuelan un poco más rápido
+
+                const angle = Math.random() * Math.PI * 2;
+                const dx = Math.cos(angle) * speed;
+                const dy = Math.sin(angle) * speed;
+                
+                blob.style.opacity = '1';
+                const bObj = { 
+                    el: blob, x, y, dx, dy, 
+                    w: size.width, h: size.height, 
+                    rotation: 0,
+                    isCorrect, type, isPopping: false 
+                };
+                
+                blob.onmousedown = () => handleBlobClick(bObj);
+                blob.ontouchstart = (e) => { e.preventDefault(); handleBlobClick(bObj); };
+                
+                activeBlobs.push(bObj);
+
+                // Auto-destrucción del potenciador si no se atrapa en 5 segundos
+                if (type !== 'normal') {
+                    setTimeout(() => {
+                        if (!bObj.isPopping) {
+                            bObj.isPopping = true;
+                            bObj.el.classList.add('pop-out');
+                        }
+                    }, 5000);
+                }
+            });
+        }
+
+        function triggerAnnouncer(text, colorClass) {
+            const ann = document.getElementById('event-announcer');
+            ann.innerText = text;
+            ann.className = `absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 text-5xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r ${colorClass} opacity-100 drop-shadow-[0_0_40px_currentColor] uppercase tracking-tighter transition-opacity duration-300 pointer-events-none w-full text-center`;
+            setTimeout(() => { ann.style.opacity = '0'; }, 1500);
+        }
+
+        function activateOverdrive() {
+            sfx.overdrive();
+            state.isOverdrive = true;
+            state.overdriveProgress = 0;
+            updateOverdriveUI();
+            
+            bodyEl.classList.add('overdrive-active');
+            triggerAnnouncer('RuBisCO OVERDRIVE', 'from-[var(--neon-gold)] to-[var(--neon-green)]');
+            
+            // Multiplicador de velocidad visual y puntos triples durante 10 segundos
+            setTimeout(() => {
+                state.isOverdrive = false;
+                bodyEl.classList.remove('overdrive-active');
+            }, 10000); 
+        }
+
+        function updateOverdriveUI() {
+            const bar = document.getElementById('overdrive-bar');
+            const tracker = document.getElementById('powerup-tracker');
+            
+            bar.style.width = `${state.overdriveProgress * 20}%`; // 5 aciertos seguidos = 100%
+            
+            if(state.isOverdrive) {
+                bar.style.width = '100%';
+                bar.style.backgroundColor = 'var(--neon-gold)';
+                bar.style.boxShadow = '0 0 20px var(--neon-gold)';
+                tracker.innerText = "¡PUNTOS X3 ACTIVADOS!";
+                tracker.style.color = "var(--neon-green)";
+            } else {
+                bar.style.backgroundColor = 'var(--neon-green)';
+                bar.style.boxShadow = '0 0 15px var(--neon-green)';
+                
+                let nextPowerUp = 2 - state.overdriveProgress;
+                if (state.overdriveProgress >= 2) nextPowerUp = 4 - state.overdriveProgress;
+                
+                if (nextPowerUp > 0) {
+                    tracker.innerText = `POTENCIADOR EN: ${nextPowerUp} ACIERTOS`;
+                    tracker.style.color = "var(--neon-gold)";
+                } else {
+                    tracker.innerText = `¡SOBRECARGA INMINENTE!`;
+                    tracker.style.color = "var(--neon-red)";
+                }
+            }
+        }
+
+        function handleBlobClick(bObj) {
+            if (bObj.isPopping || state.timeLeft <= 0) return; 
+            
+            bObj.isPopping = true;
+            bObj.el.classList.add('pop-out');
+
+            // --- Lógica Power-Ups ---
+            if (bObj.type === 'time') {
+                sfx.powerup(); 
+                state.timeLeft += 10;
+                triggerAnnouncer('+10 Segundos', 'from-orange-400 to-yellow-400');
+                document.getElementById('timer').innerText = state.timeLeft;
+                return;
+            }
+            if (bObj.type === 'remove') {
+                sfx.powerup();
+                triggerAnnouncer('FILTRO ACTIVO', 'from-red-400 to-pink-500');
+                // Busca una respuesta incorrecta y la destruye
+                const wrongBlobs = activeBlobs.filter(b => b.type === 'normal' && !b.isCorrect && !b.isPopping);
+                if (wrongBlobs.length > 0) {
+                    const target = wrongBlobs[Math.floor(Math.random() * wrongBlobs.length)];
+                    target.isPopping = true;
+                    target.el.classList.add('pop-out');
+                }
+                return;
+            }
+
+            // --- Lógica Respuestas ---
+            if (bObj.isCorrect) {
+                sfx.popOk();
+                
+                // Sumar Puntos
+                state.score += (state.isOverdrive ? 300 : 100);
+                document.getElementById('score').innerText = state.score;
+                
+                // Carga de Barra Overdrive y Generación de Power-Ups
+                if(!state.isOverdrive) {
+                    state.overdriveProgress++;
+                    updateOverdriveUI();
+                    
+                    // RECOMPENSA: Al llegar a 2 y a 4 aciertos seguidos, ganas un potenciador
+                    if(state.overdriveProgress === 2 || state.overdriveProgress === 4) {
+                        spawnPowerUp();
+                    }
+                    
+                    if(state.overdriveProgress >= 5) activateOverdrive();
+                }
+
+                // Flash Verde
+                document.getElementById('question-box').style.borderColor = 'var(--neon-green)';
+                setTimeout(() => document.getElementById('question-box').style.borderColor = 'var(--neon-cyan)', 300);
+
+                setTimeout(nextQuestion, 400); // Dar tiempo a la animación de pop
+            } else {
+                // FALLO - El castigo del Shuffle (Barajado Aleatorio)
+                sfx.popBad();
+                
+                // Romper racha de Overdrive
+                state.overdriveProgress = 0; 
+                updateOverdriveUI();
+                
+                // Penalización
+                state.score = Math.max(0, state.score - 50);
+                document.getElementById('score').innerText = state.score;
+                
+                document.getElementById('question-box').classList.add('glitch-error');
+                
+                // Shuffler (Teletransporta y dispara todas las moléculas a otra dirección)
+                const container = gameArea.getBoundingClientRect();
+                activeBlobs.forEach(b => {
+                    if(b.isPopping || b.type !== 'normal') return;
+                    // Mover a una nueva posición segura
+                    b.x = Math.random() * (container.width - b.w);
+                    b.y = Math.random() * (container.height - b.h);
+                    // Disparar en nueva dirección a más velocidad por 1 segundo
+                    const speed = (window.innerWidth < 768) ? 4 : 6;
+                    const angle = Math.random() * Math.PI * 2;
+                    b.dx = Math.cos(angle) * speed; 
+                    b.dy = Math.sin(angle) * speed;
+                });
+            }
+        }
+
+        // --- FINAL DEL JUEGO Y BASE DE DATOS ---
+        async function endGame() {
+            clearInterval(state.timerInterval);
+            cancelAnimationFrame(physicsFrame);
+            sfx.end();
+
+            // Bloquear dispositivo (Anti-trampas)
+            localStorage.setItem('biosintesis_played', 'true');
+
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-result').classList.remove('hidden');
+            document.getElementById('final-score').innerText = state.score;
+
+            if(isFirebaseActive && user) {
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard_4d'), {
+                        name: state.name, score: state.score, timestamp: Date.now()
+                    });
+                    setupLeaderboard();
+                } catch(e) { console.error("Error BD:", e); }
+            } else {
+                document.getElementById('leaderboard-list').innerHTML = '<div class="text-center text-gray-500 font-bold text-xl">Ejecutando en entorno local seguro.</div>';
+            }
+        }
+
+        function setupLeaderboard() {
+            if(!user) return;
+            const ref = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard_4d');
+            const q = query(ref, orderBy("score", "desc"), limit(10)); // Mostrar los 10 mejores
+            
+            onSnapshot(q, (snap) => {
+                let scores = []; snap.forEach(d => scores.push(d.data()));
+                const list = document.getElementById('leaderboard-list');
+                list.innerHTML = '';
+                
+                if (scores.length === 0) { list.innerHTML = '<div class="text-center text-gray-500">Sin registros en la base de datos.</div>'; return; }
+
+                scores.forEach((s, i) => {
+                    let medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : '🔹'));
+                    const row = document.createElement('div');
+                    row.className = `flex justify-between items-center p-4 rounded-2xl mb-3 transition-transform ${i===0?'bg-black/80 border-2 border-[var(--neon-gold)] text-[var(--neon-gold)] text-glow scale-105':'bg-black/40 border border-white/20 text-white'}`;
+                    row.innerHTML = `
+                        <div class="flex items-center gap-4 font-bold"><span class="text-3xl">${medal}</span><span class="truncate max-w-[180px] uppercase text-xl">${s.name.replace(/</g, "&lt;")}</span></div>
+                        <div class="text-2xl font-black">${s.score} <span class="text-sm text-gray-400 font-normal">PTS</span></div>
+                    `;
+                    list.appendChild(row);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
