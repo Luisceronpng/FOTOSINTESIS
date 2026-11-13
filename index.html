@@ -418,14 +418,16 @@
 
                 b.x += b.dx * state.physicsSpeedMult;
                 b.y += b.dy * state.physicsSpeedMult;
-                b.rotation += (b.dx > 0 ? 1 : -1) * state.physicsSpeedMult * 0.5;
+                
+                // ELIMINADO: b.rotation += ... para que el texto no se ponga de cabeza
 
                 if (b.x <= 0) { b.x = 0; b.dx *= -1; }
                 if (b.x >= rect.width - b.w) { b.x = rect.width - b.w; b.dx *= -1; }
                 if (b.y <= 0) { b.y = 0; b.dy *= -1; }
                 if (b.y >= rect.height - b.h) { b.y = rect.height - b.h; b.dy *= -1; }
 
-                b.el.style.transform = `translate(${b.x}px, ${b.y}px) rotate(${b.rotation}deg)`;
+                // MODIFICADO: El objeto se traslada pero mantiene su rotación en 0 (derecho)
+                b.el.style.transform = `translate(${b.x}px, ${b.y}px)`;
             });
             physicsFrame = requestAnimationFrame(physicsLoop);
         }
@@ -486,7 +488,7 @@
                 blob.style.opacity = '1';
                 const bObj = { 
                     el: blob, x, y, dx, dy, w: size.width, h: size.height, 
-                    rotation: 0, isCorrect, type, isPopping: false 
+                    isCorrect, type, isPopping: false 
                 };
                 
                 blob.onmousedown = () => handleBlobClick(bObj);
@@ -611,7 +613,6 @@
                 activeBlobs.forEach(b => {
                     if(b.isPopping || b.type !== 'normal') return;
                     
-                    // CORRECCIÓN: Cambian de lugar pero la velocidad se mantiene lenta
                     b.x = Math.random() * (container.width - b.w);
                     b.y = Math.random() * (container.height - b.h);
                     
