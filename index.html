@@ -610,10 +610,14 @@
                 const container = gameArea.getBoundingClientRect();
                 activeBlobs.forEach(b => {
                     if(b.isPopping || b.type !== 'normal') return;
+                    
+                    // CORRECCIÓN: Cambian de lugar pero la velocidad se mantiene lenta
                     b.x = Math.random() * (container.width - b.w);
                     b.y = Math.random() * (container.height - b.h);
-                    const speed = (window.innerWidth < 768) ? 4 : 6;
+                    
+                    const speed = (window.innerWidth < 768) ? 0.8 + Math.random() * 0.5 : 1.2 + Math.random() * 0.8;
                     const angle = Math.random() * Math.PI * 2;
+                    
                     b.dx = Math.cos(angle) * speed; 
                     b.dy = Math.sin(angle) * speed;
                 });
