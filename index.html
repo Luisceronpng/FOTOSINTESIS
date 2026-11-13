@@ -27,6 +27,8 @@
             height: 100vh;
             touch-action: manipulation;
             margin: 0;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         #bg-canvas {
@@ -85,7 +87,6 @@
             border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
             animation: morphBlob 3s ease-in-out infinite alternate;
             
-            user-select: none;
             line-height: 1.1;
             z-index: 10;
             will-change: transform;
@@ -101,16 +102,12 @@
         }
 
         /* Power-Ups (Estasis y ATP) */
-        .blob-powerup-freeze {
-            box-shadow: inset 15px 15px 25px rgba(255,255,255,0.8), inset -15px -15px 25px rgba(0,0,0,0.8), 0 20px 50px rgba(0, 242, 254, 1);
-        }
-
-        /* Power-Ups (Estasis y ATP) */
         .blob-powerup-time {
             background: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.8), var(--neon-gold) 40%, #b34700 100%);
             box-shadow: inset 15px 15px 25px rgba(255,255,255,0.6), inset -15px -15px 25px rgba(0,0,0,0.8), 0 0 50px var(--neon-gold);
             color: white; font-size: clamp(1rem, 3vw, 1.5rem); font-weight: 900; border-radius: 50%; animation: pulsePower 1s infinite alternate;
         }
+        
         .blob-powerup-remove {
             background: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.8), var(--neon-red) 40%, #800020 100%);
             box-shadow: inset 15px 15px 25px rgba(255,255,255,0.6), inset -15px -15px 25px rgba(0,0,0,0.8), 0 0 50px var(--neon-red);
@@ -133,13 +130,14 @@
             width: 100%; height: 10px; background: rgba(0,0,0,0.6); border-radius: 5px; overflow: hidden; margin-top: 5px;
             box-shadow: inset 0 2px 8px rgba(0,0,0,0.8), 0 0 5px rgba(255,255,255,0.1);
         }
+        
         #overdrive-bar {
             height: 100%; width: 0%; background: var(--neon-green); box-shadow: 0 0 15px var(--neon-green);
             transition: width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .overdrive-active {
-            animation: overdriveFlash 0.8s infinite alternate;
-        }
+        
+        .overdrive-active { animation: overdriveFlash 0.8s infinite alternate; }
+        
         @keyframes overdriveFlash {
             0% { box-shadow: inset 0 0 50px rgba(0, 255, 106, 0.1); }
             100% { box-shadow: inset 0 0 200px rgba(0, 255, 106, 0.5); }
@@ -148,6 +146,7 @@
         /* TEXTOS & GLOW */
         .text-glow { text-shadow: 0 0 15px currentColor; }
         .glitch-error { animation: glitch 0.4s cubic-bezier(.25, .46, .45, .94) both; color: var(--neon-red); }
+        
         @keyframes glitch {
             0% { transform: translate(0) }
             20% { transform: translate(-10px, 10px) }
@@ -245,7 +244,7 @@
         </div>
     </div>
 
-    <!-- SINTETIZADOR DE AUDIO (Genera Sonido con Código, Cero Archivos Externos) -->
+    <!-- SINTETIZADOR DE AUDIO 8-BIT -->
     <script>
         const actx = new (window.AudioContext || window.webkitAudioContext)();
         function playTone(freq, type, duration, vol=0.1, slideFreq=null) {
@@ -271,24 +270,28 @@
         };
     </script>
 
-    <!-- MOTOR LÓGICO Y FÍSICAS -->
+    <!-- MOTOR LÓGICO Y FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURACIÓN FIREBASE 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'biosintesis-4d';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "mock", projectId: "mock" };
-        let app, auth, db, user;
-        let isFirebaseActive = false;
+        // === CONFIGURACIÓN DE FIREBASE REAL (VERCEL) ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyBb6zLkvlDDCESzDaZ6H0Kq2cN3_k6Yd9o",
+            authDomain: "fotosintesisss-dee55.firebaseapp.com",
+            projectId: "fotosintesisss-dee55",
+            storageBucket: "fotosintesisss-dee55.firebasestorage.app",
+            messagingSenderId: "769640294381",
+            appId: "1:769640294381:web:0387ea66d43516e1c969e4"
+        };
         
-        try { 
-            app = initializeApp(firebaseConfig); 
-            auth = getAuth(app); 
-            db = getFirestore(app); 
-            isFirebaseActive = true; 
-        } catch (e) { console.warn("Modo Local activo. No se guardarán puntajes."); }
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // Carpeta limpia en la base de datos
+        const collectionName = 'leaderboard_4d'; 
 
         // --- MODO PROYECTOR Y SISTEMA ANTI-SABOTAJE ---
         window.addEventListener('DOMContentLoaded', async () => {
@@ -296,24 +299,17 @@
             const isHost = urlParams.get('host');
             const hasPlayed = localStorage.getItem('biosintesis_played');
 
-            // Autenticación silenciosa necesaria para leer la BD
-            if(isFirebaseActive) {
-                try {
-                    if (typeof __initial_auth_token !== 'undefined') await signInWithCustomToken(auth, __initial_auth_token);
-                    else await signInAnonymously(auth);
-                    user = auth.currentUser;
-                } catch(e) { console.error(e); }
-            }
+            try { await signInAnonymously(auth); } catch(e) { console.error("Error Auth Firebase", e); }
 
             if (isHost === 'true') {
-                // MODO HOST: Entra directo a la tabla de posiciones
+                // MODO HOST
                 document.getElementById('screen-start').classList.add('hidden');
                 document.getElementById('screen-result').classList.remove('hidden');
                 document.getElementById('final-score').innerHTML = "MODO<br>PROYECTOR";
                 document.getElementById('final-score').classList.replace('text-7xl', 'text-5xl');
                 document.getElementById('final-score').style.color = "var(--neon-cyan)";
                 
-                // PANEL DE ADMINISTRADOR SECRETO
+                // Botones Administrador
                 const adminDiv = document.createElement('div');
                 adminDiv.className = "flex gap-4 mt-6";
                 adminDiv.innerHTML = `
@@ -324,12 +320,12 @@
 
                 setupLeaderboard();
             } else if (hasPlayed === 'true') {
-                // MODO ESPECTADOR: El usuario ya jugó, se bloquea para evitar sabotaje y lo enviamos a ver el leaderboard
+                // MODO ESPECTADOR
                 document.getElementById('screen-start').classList.add('hidden');
                 document.getElementById('screen-result').classList.remove('hidden');
                 document.getElementById('final-score').innerHTML = "ANÁLISIS<br>COMPLETADO";
                 document.getElementById('final-score').classList.replace('text-7xl', 'text-4xl');
-                document.getElementById('btn-restart').classList.add('hidden'); // Ocultar el botón de nueva simulación
+                document.getElementById('btn-restart').classList.add('hidden');
                 setupLeaderboard();
             }
         });
@@ -337,19 +333,18 @@
         // --- FUNCIONES DE ADMINISTRADOR ---
         window.clearLeaderboard = async function() {
             if(!confirm("⚠️ ¿Estás seguro de borrar todos los puntajes? La tabla quedará en cero para la exposición.")) return;
-            if(!isFirebaseActive || !user) return;
             
             try {
-                const ref = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard_4d');
+                const ref = collection(db, collectionName);
                 const snap = await getDocs(ref);
-                snap.forEach(d => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard_4d', d.id)));
+                snap.forEach(d => deleteDoc(doc(db, collectionName, d.id)));
                 alert("Base de datos limpiada exitosamente.");
             } catch(e) { console.error("Error al borrar:", e); alert("Error al borrar datos."); }
         };
 
         window.unlockDevice = function() {
             localStorage.removeItem('biosintesis_played');
-            alert("Tu dispositivo ha sido desbloqueado. Si recargas la página (F5), podrás jugar de nuevo.");
+            alert("Tu dispositivo ha sido desbloqueado. Recarga la página (F5) sin el ?host=true para jugar de nuevo.");
         };
 
         // --- SISTEMA DE PARTÍCULAS (FLUIDO CELULAR) ---
@@ -366,18 +361,14 @@
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
                 this.size = Math.random() * 4 + 1;
-                this.speedY = (Math.random() * 2 + 0.5) * -1; // Suben como burbujas de oxígeno
+                this.speedY = (Math.random() * 2 + 0.5) * -1; // Suben
                 this.alpha = Math.random() * 0.6 + 0.1;
-                this.hue = Math.random() > 0.5 ? 180 : 150; // Cyan o Verde Clorofila
+                this.hue = Math.random() > 0.5 ? 180 : 150;
             }
             update(speedMult) {
                 this.y += this.speedY * speedMult;
-                // Wobble horizontal ligero
                 this.x += Math.sin(this.y * 0.05) * 0.5;
-                if(this.y < -10) {
-                    this.y = canvas.height + 10;
-                    this.x = Math.random() * canvas.width;
-                }
+                if(this.y < -10) { this.y = canvas.height + 10; this.x = Math.random() * canvas.width; }
             }
             draw() {
                 ctx.beginPath();
@@ -386,9 +377,9 @@
                 ctx.fill();
             }
         }
-        for(let i=0; i<70; i++) particles.push(new Particle()); // Más partículas
+        for(let i=0; i<70; i++) particles.push(new Particle());
 
-        // --- PREGUNTAS (Extraídas al pie de la letra de tu PDF) ---
+        // --- PREGUNTAS (PDF) ---
         const questionsDB = [
             { q: "¿En qué estructura del cloroplasto se lleva a cabo la fase luminosa?", a: "Tilacoides", wrongs: ["Estroma", "Citoplasma", "Núcleo"] },
             { q: "¿Qué enzima une el CO2 a la RuBP en la fase oscura?", a: "RuBisCO", wrongs: ["ATP Sintasa", "Amilasa", "Fotoliasa"] },
@@ -410,12 +401,10 @@
             { q: "Principal producto orgánico sintetizado al finalizar la fotosíntesis.", a: "Glucosa", wrongs: ["Proteína", "Lípido", "Vitamina A"] }
         ];
 
-        // --- ESTADO DEL JUEGO ---
         let state = {
             name: "", score: 0, timeLeft: 240, timerInterval: null,
             availableQs: [...questionsDB], currentQ: null,
-            overdriveProgress: 0, isOverdrive: false,
-            physicsSpeedMult: 1, // Permite ralentizar o acelerar el entorno
+            overdriveProgress: 0, isOverdrive: false, physicsSpeedMult: 1
         };
 
         let activeBlobs = [];
@@ -423,7 +412,7 @@
         const gameArea = document.getElementById('game-area');
         const bodyEl = document.getElementById('main-body');
 
-        window.startGame = function() { // Quité el async porque ya autenticamos al cargar la página
+        window.startGame = function() { 
             const nameIn = document.getElementById('player-name').value.trim();
             if(!nameIn) { alert("SISTEMA ALERTA: Requiere ID de investigador válido."); return; }
             if(nameIn.length > 15) { alert("SISTEMA ALERTA: El ID es demasiado largo (Max 15 caracteres)."); return; }
@@ -435,11 +424,9 @@
             document.getElementById('screen-start').classList.add('hidden');
             document.getElementById('screen-game').classList.remove('hidden');
 
-            // Temporizador Principal
             state.timerInterval = setInterval(() => {
                 state.timeLeft--;
                 document.getElementById('timer').innerText = state.timeLeft;
-                
                 if(state.timeLeft <= 0) endGame();
             }, 1000);
 
@@ -447,16 +434,14 @@
             nextQuestion();
         };
 
-        // --- MOTOR DE FÍSICAS FLUIDAS (MOLÉCULAS REBOTANDO) ---
+        // --- MOTOR DE FÍSICAS FLUIDAS ---
         function physicsLoop() {
             if (state.timeLeft <= 0) return;
             
-            // Dibujar fondo
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             let pSpeed = state.isOverdrive ? 4 : state.physicsSpeedMult;
             particles.forEach(p => { p.update(pSpeed); p.draw(); });
 
-            // Físicas de las burbujas
             const rect = gameArea.getBoundingClientRect();
             
             activeBlobs.forEach(b => {
@@ -464,11 +449,8 @@
 
                 b.x += b.dx * state.physicsSpeedMult;
                 b.y += b.dy * state.physicsSpeedMult;
-
-                // Rotación dinámica basada en la dirección
                 b.rotation += (b.dx > 0 ? 1 : -1) * state.physicsSpeedMult * 0.5;
 
-                // Colisiones con los bordes (Rebote)
                 if (b.x <= 0) { b.x = 0; b.dx *= -1; }
                 if (b.x >= rect.width - b.w) { b.x = rect.width - b.w; b.dx *= -1; }
                 if (b.y <= 0) { b.y = 0; b.dy *= -1; }
@@ -476,27 +458,22 @@
 
                 b.el.style.transform = `translate(${b.x}px, ${b.y}px) rotate(${b.rotation}deg)`;
             });
-
             physicsFrame = requestAnimationFrame(physicsLoop);
         }
 
         function nextQuestion() {
             if(state.timeLeft <= 0) return;
             
-            // Eliminar solo las moléculas normales, mantener los power-ups
             activeBlobs = activeBlobs.filter(b => {
                 if (b.type === 'normal') { b.el.remove(); return false; }
                 return true;
             });
             
-            // Recargar bolsa de preguntas si se vació
             if (state.availableQs.length === 0) state.availableQs = [...questionsDB];
-            
-            // Extraer una pregunta y borrarla de la lista temporal
             state.currentQ = state.availableQs.splice(Math.floor(Math.random() * state.availableQs.length), 1)[0];
             
             const qBox = document.getElementById('question-box');
-            qBox.classList.remove('glitch-error'); void qBox.offsetWidth; // reset anim
+            qBox.classList.remove('glitch-error'); void qBox.offsetWidth; 
             document.getElementById('question-text').innerText = state.currentQ.q;
 
             let opts = [state.currentQ.a, ...state.currentQ.wrongs].sort(() => Math.random() - 0.5);
@@ -506,10 +483,7 @@
         function spawnPowerUp() {
             const types = ['time', 'remove'];
             const type = types[Math.floor(Math.random() * types.length)];
-            let text = '';
-            if (type === 'time') text = '⏱️<br>+10s';
-            else if (type === 'remove') text = '✂️<br>-1 Falsa';
-            
+            let text = type === 'time' ? '⏱️<br>+10s' : '✂️<br>-1 Falsa';
             spawnBlob(text, false, type);
         }
 
@@ -523,22 +497,17 @@
             blob.innerHTML = text;
             blob.style.opacity = '0';
             
-            if(type !== 'normal') {
-                blob.style.width = '100px'; blob.style.height = '100px';
-            }
-
+            if(type !== 'normal') { blob.style.width = '100px'; blob.style.height = '100px'; }
             gameArea.appendChild(blob);
 
-            // Permitir que el DOM renderice para calcular tamaños
             requestAnimationFrame(() => {
                 const size = blob.getBoundingClientRect();
                 const container = gameArea.getBoundingClientRect();
                 const x = Math.random() * (container.width - size.width);
                 const y = Math.random() * (container.height - size.height);
                 
-                // Velocidad base reducida para mayor jugabilidad
                 let speed = (window.innerWidth < 768) ? 0.8 + Math.random() * 0.5 : 1.2 + Math.random() * 0.8;
-                if(type !== 'normal') speed *= 1.5; // Los power-ups vuelan un poco más rápido
+                if(type !== 'normal') speed *= 1.5; 
 
                 const angle = Math.random() * Math.PI * 2;
                 const dx = Math.cos(angle) * speed;
@@ -546,10 +515,8 @@
                 
                 blob.style.opacity = '1';
                 const bObj = { 
-                    el: blob, x, y, dx, dy, 
-                    w: size.width, h: size.height, 
-                    rotation: 0,
-                    isCorrect, type, isPopping: false 
+                    el: blob, x, y, dx, dy, w: size.width, h: size.height, 
+                    rotation: 0, isCorrect, type, isPopping: false 
                 };
                 
                 blob.onmousedown = () => handleBlobClick(bObj);
@@ -557,7 +524,6 @@
                 
                 activeBlobs.push(bObj);
 
-                // Auto-destrucción del potenciador si no se atrapa en 5 segundos
                 if (type !== 'normal') {
                     setTimeout(() => {
                         if (!bObj.isPopping) {
@@ -585,10 +551,10 @@
             bodyEl.classList.add('overdrive-active');
             triggerAnnouncer('RuBisCO OVERDRIVE', 'from-[var(--neon-gold)] to-[var(--neon-green)]');
             
-            // Multiplicador de velocidad visual y puntos triples durante 10 segundos
             setTimeout(() => {
                 state.isOverdrive = false;
                 bodyEl.classList.remove('overdrive-active');
+                updateOverdriveUI();
             }, 10000); 
         }
 
@@ -596,7 +562,7 @@
             const bar = document.getElementById('overdrive-bar');
             const tracker = document.getElementById('powerup-tracker');
             
-            bar.style.width = `${state.overdriveProgress * 20}%`; // 5 aciertos seguidos = 100%
+            bar.style.width = `${state.overdriveProgress * 20}%`; 
             
             if(state.isOverdrive) {
                 bar.style.width = '100%';
@@ -627,7 +593,6 @@
             bObj.isPopping = true;
             bObj.el.classList.add('pop-out');
 
-            // --- Lógica Power-Ups ---
             if (bObj.type === 'time') {
                 sfx.powerup(); 
                 state.timeLeft += 10;
@@ -638,7 +603,6 @@
             if (bObj.type === 'remove') {
                 sfx.powerup();
                 triggerAnnouncer('FILTRO ACTIVO', 'from-red-400 to-pink-500');
-                // Busca una respuesta incorrecta y la destruye
                 const wrongBlobs = activeBlobs.filter(b => b.type === 'normal' && !b.isCorrect && !b.isPopping);
                 if (wrongBlobs.length > 0) {
                     const target = wrongBlobs[Math.floor(Math.random() * wrongBlobs.length)];
@@ -648,54 +612,36 @@
                 return;
             }
 
-            // --- Lógica Respuestas ---
             if (bObj.isCorrect) {
                 sfx.popOk();
-                
-                // Sumar Puntos
                 state.score += (state.isOverdrive ? 300 : 100);
                 document.getElementById('score').innerText = state.score;
                 
-                // Carga de Barra Overdrive y Generación de Power-Ups
                 if(!state.isOverdrive) {
                     state.overdriveProgress++;
                     updateOverdriveUI();
-                    
-                    // RECOMPENSA: Al llegar a 2 y a 4 aciertos seguidos, ganas un potenciador
-                    if(state.overdriveProgress === 2 || state.overdriveProgress === 4) {
-                        spawnPowerUp();
-                    }
-                    
+                    if(state.overdriveProgress === 2 || state.overdriveProgress === 4) spawnPowerUp();
                     if(state.overdriveProgress >= 5) activateOverdrive();
                 }
 
-                // Flash Verde
                 document.getElementById('question-box').style.borderColor = 'var(--neon-green)';
                 setTimeout(() => document.getElementById('question-box').style.borderColor = 'var(--neon-cyan)', 300);
 
-                setTimeout(nextQuestion, 400); // Dar tiempo a la animación de pop
+                setTimeout(nextQuestion, 400); 
             } else {
-                // FALLO - El castigo del Shuffle (Barajado Aleatorio)
                 sfx.popBad();
-                
-                // Romper racha de Overdrive
                 state.overdriveProgress = 0; 
                 updateOverdriveUI();
                 
-                // Penalización
                 state.score = Math.max(0, state.score - 50);
                 document.getElementById('score').innerText = state.score;
-                
                 document.getElementById('question-box').classList.add('glitch-error');
                 
-                // Shuffler (Teletransporta y dispara todas las moléculas a otra dirección)
                 const container = gameArea.getBoundingClientRect();
                 activeBlobs.forEach(b => {
                     if(b.isPopping || b.type !== 'normal') return;
-                    // Mover a una nueva posición segura
                     b.x = Math.random() * (container.width - b.w);
                     b.y = Math.random() * (container.height - b.h);
-                    // Disparar en nueva dirección a más velocidad por 1 segundo
                     const speed = (window.innerWidth < 768) ? 4 : 6;
                     const angle = Math.random() * Math.PI * 2;
                     b.dx = Math.cos(angle) * speed; 
@@ -704,38 +650,29 @@
             }
         }
 
-        // --- FINAL DEL JUEGO Y BASE DE DATOS ---
         async function endGame() {
             clearInterval(state.timerInterval);
             cancelAnimationFrame(physicsFrame);
             sfx.end();
 
-            // Bloquear dispositivo (Anti-trampas)
             localStorage.setItem('biosintesis_played', 'true');
 
             document.getElementById('screen-game').classList.add('hidden');
             document.getElementById('screen-result').classList.remove('hidden');
             document.getElementById('final-score').innerText = state.score;
 
-            if(isFirebaseActive && user) {
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard_4d'), {
-                        name: state.name, score: state.score, timestamp: Date.now()
-                    });
-                    setupLeaderboard();
-                } catch(e) { console.error("Error BD:", e); }
-            } else {
-                document.getElementById('leaderboard-list').innerHTML = '<div class="text-center text-gray-500 font-bold text-xl">Ejecutando en entorno local seguro.</div>';
-            }
+            try {
+                await addDoc(collection(db, collectionName), { name: state.name, score: state.score, timestamp: Date.now() });
+                setupLeaderboard();
+            } catch(e) { console.error("Error BD:", e); }
         }
 
         function setupLeaderboard() {
-            if(!user) return;
-            const ref = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard_4d');
-            const q = query(ref, orderBy("score", "desc"), limit(10)); // Mostrar los 10 mejores
+            const ref = collection(db, collectionName);
+            const q = query(ref, orderBy("score", "desc"), limit(10));
             
             onSnapshot(q, (snap) => {
-                let scores = []; snap.forEach(d => scores.push(d.data()));
+                let scores = []; snap.forEach(d => scores.push({ id: d.id, ...d.data() }));
                 const list = document.getElementById('leaderboard-list');
                 list.innerHTML = '';
                 
