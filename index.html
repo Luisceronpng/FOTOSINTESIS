@@ -205,7 +205,7 @@
                 </div>
                 <div class="w-1/3 text-right">
                     <div class="text-[0.6rem] md:text-xs uppercase text-[var(--neon-gold)] font-bold tracking-widest">Tiempo</div>
-                    <div id="timer" class="text-2xl md:text-4xl font-black text-white text-glow leading-none mt-1">240</div>
+                    <div id="timer" class="text-2xl md:text-4xl font-black text-white text-glow leading-none mt-1">120</div>
                 </div>
             </div>
         </div>
@@ -240,7 +240,6 @@
                 0
             </div>
             
-            <!-- BOTÓN DE JUGAR DE NUEVO (NUEVO) -->
             <button onclick="location.reload()" class="bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-8 rounded-xl transition-all border border-white/30 uppercase tracking-widest z-10 mt-2">
                 🔄 Nueva Simulación
             </button>
@@ -314,7 +313,7 @@
 
         // --- MEGA BANCO DE PREGUNTAS (47 PREGUNTAS DE FERNANDA, ANDY Y LAURA) ---
         const questionsDB = [
-            // TEMA: FERNANDA (Pág 1-4) - Conceptos básicos, cloroplastos y pigmentos
+            // TEMA: FERNANDA (Pág 1-4)
             { q: "¿Qué proceso biológico convierte la energía luminosa en energía química?", a: "Fotosíntesis", wrongs: ["Respiración celular", "Glucólisis", "Fermentación"] },
             { q: "¿Qué gas indispensable absorben las plantas del aire para hacer fotosíntesis?", a: "Dióxido de Carbono (CO2)", wrongs: ["Oxígeno (O2)", "Nitrógeno", "Metano"] },
             { q: "¿Qué gas liberan al ambiente los organismos fotosintéticos?", a: "Oxígeno (O2)", wrongs: ["Dióxido de carbono", "Ozono", "Monóxido"] },
@@ -332,7 +331,7 @@
             { q: "Pigmentos amarillos que disipan el exceso de luz como calor para proteger la hoja.", a: "Xantofilas", wrongs: ["Carotenos", "Clorofila a", "Carbohidratos"] },
             { q: "¿Qué átomo de metal se encuentra en el centro de la molécula de clorofila?", a: "Magnesio (Mg)", wrongs: ["Hierro (Fe)", "Calcio (Ca)", "Zinc (Zn)"] },
 
-            // TEMA: ANDY (Pág 5-8) - Fase luminosa, Fotosistemas y Fotólisis
+            // TEMA: ANDY (Pág 5-8)
             { q: "¿En qué estructura específica del cloroplasto ocurre la fase luminosa?", a: "Membrana del tilacoide", wrongs: ["En el estroma", "Membrana externa", "Núcleo celular"] },
             { q: "¿Qué elemento de la naturaleza se necesita indispensablemente para la fase luminosa?", a: "Luz solar", wrongs: ["Glucosa", "Oscuridad", "Viento"] },
             { q: "Complejos de proteínas y pigmentos que capturan la luz en el tilacoide.", a: "Fotosistemas", wrongs: ["Ribosomas", "Mitocondrias", "Aparato de Golgi"] },
@@ -348,7 +347,7 @@
             { q: "¿Qué subproducto de desecho se libera al exterior durante la fase fotoquímica?", a: "Oxígeno (O2)", wrongs: ["Dióxido de carbono", "Metano", "Glucosa"] },
             { q: "¿Qué ocurre con los electrones perdidos por el Fotosistema II?", a: "Se reponen con la fotólisis", wrongs: ["Desaparecen", "Se convierten en luz", "Vuelven al sol"] },
 
-            // TEMA: LAURA (Pág 9-12) - Ciclo de Calvin, Cadena Trófica e Importancia
+            // TEMA: LAURA (Pág 9-12)
             { q: "¿En qué parte liquida del cloroplasto ocurre el Ciclo de Calvin?", a: "Estroma", wrongs: ["Tilacoides", "Grana", "Citoplasma"] },
             { q: "¿De qué otra forma se le conoce al Ciclo de Calvin?", a: "Fase oscura", wrongs: ["Fase fotoquímica", "Fase luminosa", "Ciclo de Krebs"] },
             { q: "Enzima más importante y abundante encargada de fijar el CO2 en el Ciclo de Calvin.", a: "RuBisCO", wrongs: ["ATP Sintasa", "Helicasa", "Polimerasa"] },
@@ -369,7 +368,7 @@
         ];
 
         let state = {
-            score: 0, timeLeft: 240, timerInterval: null,
+            score: 0, timeLeft: 120, timerInterval: null,
             availableQs: [...questionsDB], currentQ: null,
             overdriveProgress: 0, isOverdrive: false, physicsSpeedMult: 1
         };
@@ -383,9 +382,8 @@
             if (actx.state === 'suspended') actx.resume();
             sfx.popOk();
 
-            // Reiniciamos todo por si pulsaron "Volver a jugar"
             state.score = 0;
-            state.timeLeft = 240;
+            state.timeLeft = 120;
             state.availableQs = [...questionsDB];
             state.overdriveProgress = 0;
             state.isOverdrive = false;
@@ -442,7 +440,6 @@
             
             if (state.availableQs.length === 0) state.availableQs = [...questionsDB];
             
-            // Selecciona pregunta al azar
             state.currentQ = state.availableQs.splice(Math.floor(Math.random() * state.availableQs.length), 1)[0];
             
             const qBox = document.getElementById('question-box');
@@ -631,7 +628,6 @@
             document.getElementById('screen-game').classList.add('hidden');
             document.getElementById('screen-result').classList.remove('hidden');
             
-            // Mostrar puntaje en grande
             document.getElementById('final-score').innerText = state.score;
         }
     </script>
